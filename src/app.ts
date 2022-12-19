@@ -22,9 +22,26 @@ interface DemoScopeNameInfo extends ScopeNameInfo {
   path: string;
 }
 
-main('python');
+let url = new URL(window.location.toString());
+let params = new URLSearchParams(url.search);
+let code = params.get('code');
+if (code === null) {
+  throw new Error("required GET parameter code not provided in the URL");
+}
 
-async function main(language: LanguageId) {
+let lang = params.get('languageid');
+if (lang === null) {
+  throw new Error("required GET parameter languageid");
+}
+
+let readonlyStr = params.get('readonly');
+if (readonlyStr === null) {
+  throw new Error("required GET parameter readonly not provided in the URL");
+}
+
+main(lang, code, readonlyStr == 'true');
+
+async function main(language: LanguageId, code: string, readonly:boolean) {
   // In this demo, the following values are hardcoded to support Python using
   // the VS Code Dark+ theme. Currently, end users are responsible for
   // extracting the data from the relevant VS Code extensions themselves to
@@ -64,11 +81,36 @@ async function main(language: LanguageId) {
       filenames: ['Snakefile', 'BUILD', 'BUCK', 'TARGETS'],
       firstLine: '^#!\\s*/?.*\\bpython[0-9.-]*\\b',
     },
+    {
+      id: 'terramate',
+      extensions: [
+        '.tm',
+        '.tm.hcl',
+      ],
+      aliases: ['Terramate', 'tm'],
+      filenames: [],
+    },
+    {
+      id: 'json',
+      extensions: [
+        '.json',
+      ],
+      aliases: ['JSON'],
+      filenames: [],
+    },
   ];
   const grammars: {[scopeName: string]: DemoScopeNameInfo} = {
     'source.python': {
       language: 'python',
       path: 'MagicPython.tmLanguage.json',
+    },
+    'source.tm': {
+      language: 'terramate',
+      path: 'Terramate.tmLanguage.json',
+    },
+    'source.json': {
+      language: 'json',
+      path: 'JSON.tmLanguage.json',
     },
   };
 
@@ -112,7 +154,6 @@ async function main(language: LanguageId) {
     monaco,
   );
 
-  const value = getSampleCodeForLanguage(language);
   const id = 'container';
   const element = document.getElementById(id);
   if (element == null) {
@@ -120,11 +161,13 @@ async function main(language: LanguageId) {
   }
 
   monaco.editor.create(element, {
-    value,
+    value: code,
     language,
+    readOnly: readonly,
     theme: 'vs-dark',
+    wordWrap: 'on',
     minimap: {
-      enabled: true,
+      enabled: false,
     },
   });
   provider.injectCSS();
@@ -142,19 +185,4 @@ async function loadVSCodeOnigurumWASM(): Promise<Response | ArrayBuffer> {
   // Otherwise, a TypeError is thrown when using the streaming compiler.
   // We therefore use the non-streaming compiler :(.
   return await response.arrayBuffer();
-}
-
-function getSampleCodeForLanguage(language: LanguageId): string {
-  if (language === 'python') {
-    return `\
-import foo
-
-async def bar(): string:
-  f = await foo()
-  f_string = f"Hooray {f}! format strings are not supported in current Monarch grammar"
-  return foo_string
-`;
-  }
-
-  throw Error(`unsupported language: ${language}`);
 }
